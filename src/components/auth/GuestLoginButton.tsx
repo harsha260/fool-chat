@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/utils/supabase/client'
 import { Turnstile } from '@marsidev/react-turnstile'
+import type { TurnstileInstance } from '@marsidev/react-turnstile'
 
 export default function GuestLoginButton() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance>(null)
   
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
@@ -31,13 +33,19 @@ export default function GuestLoginButton() {
       return
     }
 
-    const options = captchaToken ? { captchaToken } : undefined
-    const { data, error } = await supabase.auth.signInAnonymously(options ? { options } : undefined)
+    const { data, error } = await supabase.auth.signInAnonymously(
+      captchaToken ? { options: { captchaToken } } : undefined
+    )
     
     if (error) {
-      console.error(error)
-      alert(`Error: ${error.message}. Please check your Supabase Dashboard configuration (Anonymous Sign-ins and CAPTCHA).`)
+      console.error("Supabase Auth Error:", error)
+      alert(`Error: ${error.message}. If this persists, verify your Cloudflare Turnstile Secret Key in Supabase.`)
       setLoading(false)
+      // Reset captcha on failure because tokens are single-use
+      if (turnstileRef.current) {
+        turnstileRef.current.reset()
+        setCaptchaToken(null)
+      }
       return
     }
 
@@ -54,6 +62,11 @@ export default function GuestLoginButton() {
         alert("Failed to claim Code Name. It might have just been taken.")
         await supabase.auth.signOut()
         setLoading(false)
+        // Reset captcha here too
+        if (turnstileRef.current) {
+          turnstileRef.current.reset()
+          setCaptchaToken(null)
+        }
         return
       }
 
@@ -65,6 +78,7 @@ export default function GuestLoginButton() {
     <div className="flex flex-col items-center w-full space-y-4">
       {siteKey && (
         <Turnstile
+          ref={turnstileRef}
           siteKey={siteKey}
           onSuccess={(token) => setCaptchaToken(token)}
           options={{ theme: 'dark', size: 'flexible' }}

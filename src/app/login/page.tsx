@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import GuestLoginButton from '@/components/auth/GuestLoginButton'
+import TurnstileInput from '@/components/auth/TurnstileInput'
 
 export default async function LoginPage(props: {
   searchParams: Promise<{ message?: string }>
@@ -58,6 +59,7 @@ export default async function LoginPage(props: {
                 className="bg-zinc-950 border-zinc-700 text-zinc-100 focus-visible:ring-indigo-500"
               />
             </div>
+            <TurnstileInput key={message || 'default'} />
           </CardContent>
           <CardFooter className="flex flex-col space-y-3 pb-6">
             <Button 

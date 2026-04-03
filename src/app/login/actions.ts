@@ -6,11 +6,14 @@ export async function login(formData: FormData) {
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const captchaToken = formData.get('cf-turnstile-response') as string | null
   const supabase = await createClient()
 
+  const options = captchaToken ? { captchaToken } : undefined
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
+    options
   })
 
   if (error) {
@@ -26,6 +29,7 @@ export async function signup(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const code_name = formData.get('code_name') as string
+  const captchaToken = formData.get('cf-turnstile-response') as string | null
   const supabase = await createClient()
 
   if (!code_name || code_name.trim() === '') {
@@ -38,9 +42,11 @@ export async function signup(formData: FormData) {
     redirect(`/login?message=${encodeURIComponent("Code Name is already taken")}`)
   }
 
+  const options = captchaToken ? { captchaToken } : undefined
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options
   })
 
   if (error) {
