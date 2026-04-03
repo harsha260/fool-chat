@@ -21,14 +21,14 @@ export default async function Dashboard() {
       const newProfile = { 
         id: user.id, 
         code_name: user.email?.split('@')[0] || 'Unknown',
-        sequence: 9
+        rank: 9
       }
       await supabase.from('profiles').insert(newProfile)
       profile = newProfile
     }
 
-    if (!user.is_anonymous && !profile.pathway) {
-      redirect('/choose-pathway')
+    if (!user.is_anonymous && !profile.role) {
+      redirect('/choose-role')
     }
   }
 

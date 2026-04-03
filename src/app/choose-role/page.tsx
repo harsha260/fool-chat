@@ -1,11 +1,11 @@
-import { PATHWAYS } from '@/lib/lotm'
-import { selectPathway } from './actions'
+import { ROLES } from '@/lib/roles'
+import { selectRole } from './actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 
-export default async function ChoosePathwayPage() {
+export default async function ChooseRolePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
@@ -13,9 +13,9 @@ export default async function ChoosePathwayPage() {
     redirect('/login')
   }
 
-  // Prevent users from choosing a pathway again if they already have one
-  const { data: profile } = await supabase.from('profiles').select('pathway').eq('id', user.id).single()
-  if (profile?.pathway) {
+  // Prevent users from choosing a role again if they already have one
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role) {
     redirect('/')
   }
 
@@ -31,31 +31,31 @@ export default async function ChoosePathwayPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full pb-16">
-        {PATHWAYS.map((pathway) => (
+        {ROLES.map((role) => (
           <Card 
-            key={pathway.id} 
+            key={role.id} 
             className="bg-zinc-900/40 border-zinc-800/60 flex flex-col hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 group shadow-lg shadow-black/20"
           >
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between mb-2">
-                <CardTitle className={`text-xl font-bold tracking-tight ${pathway.textColor}`}>
-                  {pathway.name}
+                <CardTitle className={`text-xl font-bold tracking-tight ${role.textColor}`}>
+                  {role.name}
                 </CardTitle>
-                <div className={`w-2 h-2 rounded-full ${pathway.bgColor.replace('/10', '')} shadow-[0_0_8px_rgba(0,0,0,0)] shadow-${pathway.textColor.replace('text-', '')}`} />
+                <div className={`w-2 h-2 rounded-full ${role.bgColor.replace('/10', '')} shadow-[0_0_8px_rgba(0,0,0,0)] shadow-${role.textColor.replace('text-', '')}`} />
               </div>
               <CardDescription className="text-zinc-500 font-medium text-sm tracking-wide uppercase">
-                Starting Rank: {pathway.sequence9}
+                Starting Rank: {role.rank9}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 text-zinc-400 text-sm leading-relaxed">
-              <p>{pathway.description}</p>
+              <p>{role.description}</p>
             </CardContent>
             <CardFooter className="pt-4 border-t border-zinc-800/30">
-              <form action={selectPathway} className="w-full">
-                <input type="hidden" name="pathwayId" value={pathway.id} />
+              <form action={selectRole} className="w-full">
+                <input type="hidden" name="roleId" value={role.id} />
                 <Button 
                   type="submit" 
-                  className={`w-full bg-zinc-900/50 border border-zinc-800 text-zinc-300 transition-all duration-300 font-semibold hover:text-zinc-50 ${pathway.hoverBg}`}
+                  className={`w-full bg-zinc-900/50 border border-zinc-800 text-zinc-300 transition-all duration-300 font-semibold hover:text-zinc-50 ${role.hoverBg}`}
                   variant="outline"
                 >
                   Select Role

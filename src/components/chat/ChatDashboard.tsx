@@ -2,15 +2,18 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Hash, User, LogOut, Copy, LogIn, MessageSquare, Menu } from 'lucide-react'
+import { Plus, Hash, User, LogOut, Copy, LogIn, MessageSquare, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getPathway, getSequenceName } from '@/lib/lotm'
+import UserProfileSettings from './UserProfileSettings'
+import { CreateOrganizationModal, CreateChannelModal, JoinOrganizationModal, StartDMModal } from './ServerModals'
+import { MessageItem } from './MessageItem'
+import { getRole, getRankName } from '@/lib/roles'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 type Organization = { id: string; name: string; owner_id: string }
 type Channel = { id: string; name: string; organization_id: string }
-type Message = { id: string; content: string; profile_id: string; created_at: string; code_name?: string; pathway?: string | null; sequence?: number; status?: 'pending' | 'sent' | 'error' }
-type Profile = { id: string; code_name: string; pathway: string | null; sequence: number }
+type Message = { id: string; content: string; profile_id: string; created_at: string; code_name?: string; role?: string | null; rank?: number; status?: 'pending' | 'sent' | 'error'; is_edited?: boolean; reactions?: Record<string, string[]> }
+type Profile = { id: string; code_name: string; role: string | null; rank: number }
 
 export default function ChatDashboard({ user, profile }: { user: SupabaseUser | null, profile: Profile | null }) {
   const supabase = createClient()
@@ -24,6 +27,12 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // Modal states
+  const [createOrgOpen, setCreateOrgOpen] = useState(false)
+  const [createChannelOpen, setCreateChannelOpen] = useState(false)
+  const [joinOrgOpen, setJoinOrgOpen] = useState(false)
+  const [startDMOpen, setStartDMOpen] = useState(false)
 
   const sessionTokenRef = useRef<string | null>(null)
 
@@ -147,7 +156,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       if (!activeChannel) return
       const { data } = await supabase
         .from('messages')
-        .select('*, profiles(code_name, pathway, sequence)')
+        .select('*, profiles(code_name, role, rank)')
         .eq('channel_id', activeChannel.id)
         .order('created_at', { ascending: true })
 
@@ -155,8 +164,8 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         setMessages(data.map(m => ({
           ...m,
           code_name: m.profiles?.code_name || 'Unknown Beyonder',
-          pathway: m.profiles?.pathway,
-          sequence: m.profiles?.sequence
+          role: m.profiles?.role,
+          rank: m.profiles?.rank
         })) as Message[])
       }
     }
@@ -174,13 +183,13 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         
         if (isOptimistic) return
 
-        // Fetch the profile for the new message to get the code_name, pathway, sequence
-        const { data: profileData } = await supabase.from('profiles').select('code_name, pathway, sequence').eq('id', payload.new.profile_id).single()
+        // Fetch the profile for the new message to get the code_name, role, rank
+        const { data: profileData } = await supabase.from('profiles').select('code_name, role, rank').eq('id', payload.new.profile_id).single()
         const msg = { 
           ...payload.new, 
           code_name: profileData?.code_name || 'Unknown Beyonder', 
-          pathway: profileData?.pathway,
-          sequence: profileData?.sequence,
+          role: profileData?.role,
+          rank: profileData?.rank,
           status: 'sent' 
         } as Message
         
@@ -199,6 +208,12 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           return [...prev, msg]
         })
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `channel_id=eq.${activeChannel.id}` }, (payload) => {
+        setMessages((prev) => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `channel_id=eq.${activeChannel.id}` }, (payload) => {
+        setMessages((prev) => prev.filter(m => m.id !== payload.old.id))
+      })
       .subscribe()
 
     return () => {
@@ -206,11 +221,9 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     }
   }, [activeChannel])
 
-  const createOrganization = async () => {
+  const createOrganization = async (name: string) => {
     if (!user) return alert("Must be logged in!")
-    const name = prompt("Enter Organization Name (e.g. The Tarot Club):")
-    if (!name) return
-
+    
     const { data: org, error } = await supabase
       .from('organizations')
       .insert({ name, owner_id: user.id })
@@ -234,14 +247,12 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     }
   }
 
-  const createChannel = async () => {
+  const createChannel = async (name: string) => {
     if (!user || !activeOrg) return alert("Must select an organization first!")
-    const name = prompt("Enter Channel Name (e.g. formulas-exchange):")
-    if (!name) return
-
+    
     const { data: channel, error } = await supabase
       .from('channels')
-      .insert({ name: name.toLowerCase().replace(/\s+/g, '-'), organization_id: activeOrg.id })
+      .insert({ name: name, organization_id: activeOrg.id })
       .select()
       .single()
     
@@ -285,11 +296,9 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     }
   }
 
-  const joinOrganization = async () => {
+  const joinOrganization = async (orgId: string) => {
     if (!user) return alert("Must be logged in!")
-    const orgId = prompt("Enter Organization ID to join:")
-    if (!orgId) return
-
+    
     const { data: org, error: orgError } = await supabase.from('organizations').select('*').eq('id', orgId).single()
     if (!org) return alert("Organization not found.")
 
@@ -305,11 +314,9 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     setActiveOrg(org)
   }
 
-  const startDM = async () => {
+  const startDM = async (targetCodeName: string) => {
     if (!user) return alert("Must be logged in!")
-    const targetCodeName = prompt("Enter the Code Name of the Beyonder you wish to contact:")
-    if (!targetCodeName) return
-
+    
     // Look up user by code name
     const { data: targetProfile, error: profileError } = await supabase.from('profiles').select('*').eq('code_name', targetCodeName).single()
     
@@ -401,6 +408,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSidebarOpen(false)
     }
   }, [])
@@ -435,7 +443,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         <div className="w-8 h-[2px] bg-zinc-800 rounded-full" />
         
         <button 
-          onClick={createOrganization}
+          onClick={() => setCreateOrgOpen(true)}
           className="w-12 h-12 rounded-3xl bg-zinc-800 hover:rounded-xl hover:bg-emerald-600 transition-all duration-200 flex items-center justify-center cursor-pointer text-emerald-400 hover:text-white"
           title="Create Organization"
         >
@@ -443,7 +451,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         </button>
 
         <button 
-          onClick={joinOrganization}
+          onClick={() => setJoinOrgOpen(true)}
           className="w-12 h-12 rounded-3xl bg-zinc-800 hover:rounded-xl hover:bg-indigo-600 transition-all duration-200 flex items-center justify-center cursor-pointer text-indigo-400 hover:text-white"
           title="Join Organization"
         >
@@ -451,37 +459,54 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         </button>
 
         <button 
-          onClick={startDM}
-          className="w-12 h-12 rounded-3xl bg-zinc-800 hover:rounded-xl hover:bg-zinc-600 transition-all duration-200 flex items-center justify-center cursor-pointer text-zinc-400 hover:text-white mt-auto mb-4"
+          onClick={() => setStartDMOpen(true)}
+          className="w-12 h-12 rounded-3xl bg-zinc-800 hover:rounded-xl hover:bg-zinc-600 transition-all duration-200 flex items-center justify-center cursor-pointer text-zinc-400 hover:text-white"
           title="Start Direct Message"
         >
           <MessageSquare size={20} />
         </button>
+
+        <div className="mt-auto mb-4 flex flex-col items-center gap-4">
+          <UserProfileSettings 
+            profile={profile} 
+            isAnonymous={user?.is_anonymous || false} 
+            handleLogout={handleLogout} 
+          />
+        </div>
       </div>
 
       {/* Channels Sidebar */}
       <div className={`bg-zinc-900 flex-col border-r border-zinc-800 transition-all duration-300 overflow-hidden z-30 absolute md:relative h-full flex ${sidebarOpen ? 'w-60 translate-x-16 md:translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 border-r-0'}`}>
         <div className="h-12 min-w-[15rem] border-b border-zinc-800 flex items-center px-4 shadow-sm justify-between group">
-          <span className="truncate text-base font-semibold">{activeOrg?.name || "No Organization"}</span>
-          {activeOrg && !activeOrg.name.startsWith('@') && (
+          <span className="truncate text-base font-semibold flex-1">{activeOrg?.name || "No Organization"}</span>
+          <div className="flex items-center">
+            {activeOrg && !activeOrg.name.startsWith('@') && (
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(activeOrg.id)
+                  alert("Organization ID copied to clipboard!")
+                }}
+                className="text-zinc-500 hover:text-zinc-100 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2 p-1"
+                title="Copy Organization ID to invite others"
+              >
+                <Copy size={16} />
+              </button>
+            )}
             <button 
-              onClick={() => {
-                navigator.clipboard.writeText(activeOrg.id)
-                alert("Organization ID copied to clipboard!")
-              }}
-              className="text-zinc-500 hover:text-zinc-100 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2"
-              title="Copy Organization ID to invite others"
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden text-zinc-500 hover:text-zinc-100 p-1 ml-2"
+              title="Close Menu"
             >
-              <Copy size={16} />
+              <X size={20} />
             </button>
-          )}
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-[15rem]">
           {activeOrg && (
             <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-zinc-400 uppercase tracking-wider mt-4 mb-1">
               <span>Gatherings</span>
-              <button onClick={createChannel} className="hover:text-zinc-100"><Plus size={14} /></button>
+              <button onClick={() => setCreateChannelOpen(true)} className="hover:text-zinc-100"><Plus size={14} /></button>
             </div>
           )}
           
@@ -502,22 +527,6 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
               <span className="truncate">{channel.name}</span>
             </div>
           ))}
-        </div>
-        
-        {/* User Info Area */}
-        <div className="h-14 bg-zinc-950 flex items-center px-4 gap-3 border-t border-zinc-800 min-w-[15rem]">
-          <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
-            <User size={16} className="text-zinc-400" />
-          </div>
-          <div className="flex-1 min-w-0 flex flex-col">
-            <span className="text-sm font-semibold truncate">{profile?.code_name || "Wandering Spirit"}</span>
-            <span className="text-xs text-zinc-400 truncate">
-              {user?.is_anonymous ? "Anonymous User" : (profile?.sequence ? `Seq ${profile.sequence}: ${getSequenceName(profile.pathway, profile.sequence)}` : "Sequence Name")}
-            </span>
-          </div>
-          <button onClick={handleLogout} className="text-zinc-500 hover:text-rose-400 transition-colors">
-            <LogOut size={16} />
-          </button>
         </div>
       </div>
 
@@ -544,36 +553,13 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           {!activeChannel && activeOrg && channels.length === 0 && (
             <div className="flex items-center justify-center h-full text-zinc-500 flex-col gap-2">
               <p>No gatherings in this organization yet.</p>
-              <Button onClick={createChannel} variant="outline" className="border-zinc-700">Create the first one</Button>
+              <Button onClick={() => setCreateChannelOpen(true)} variant="outline" className="border-zinc-700">Create the first one</Button>
             </div>
           )}
           
-          {messages.map(msg => {
-            const isOwn = msg.profile_id === user?.id;
-            const pathwayDef = getPathway(msg.pathway || '');
-            const pathwayColorClass = pathwayDef ? pathwayDef.textColor : 'text-zinc-400';
-            const sequenceBadge = msg.pathway ? `[${getSequenceName(msg.pathway, msg.sequence)}]` : '';
-
-            return (
-              <div key={msg.id} className={`flex gap-4 w-full ${msg.status === 'pending' ? 'opacity-50' : ''} ${msg.status === 'error' ? 'text-red-400' : ''} ${isOwn ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm shadow-sm ${pathwayDef ? pathwayDef.bgColor : 'bg-zinc-800'} ${pathwayDef ? pathwayDef.textColor : 'text-zinc-200'}`}>
-                  {msg.code_name?.[0]?.toUpperCase() || '?'}
-                </div>
-                <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                  <div className={`flex items-baseline gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                    <span className="font-semibold text-indigo-400">{msg.code_name}</span>
-                    {sequenceBadge && <span className={`text-[10px] font-bold tracking-wide uppercase ${pathwayColorClass}`}>{sequenceBadge}</span>}
-                    <span className="text-xs text-zinc-500">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    {msg.status === 'pending' && <span className="text-xs text-zinc-500 italic px-1">sending...</span>}
-                    {msg.status === 'error' && <span className="text-xs text-red-500 italic px-1">failed</span>}
-                  </div>
-                  <div className={`mt-1 px-4 py-2.5 rounded-2xl whitespace-pre-wrap text-sm leading-relaxed ${isOwn ? 'bg-indigo-600 text-zinc-100 rounded-tr-sm' : 'bg-zinc-800 text-zinc-100 rounded-tl-sm'}`}>
-                    {msg.content}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {messages.map(msg => (
+            <MessageItem key={msg.id} msg={msg} currentUserId={user?.id} />
+          ))}
         </div>
 
         {/* Message Input */}
@@ -596,6 +582,12 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <CreateOrganizationModal open={createOrgOpen} onOpenChange={setCreateOrgOpen} onSubmit={createOrganization} />
+      <CreateChannelModal open={createChannelOpen} onOpenChange={setCreateChannelOpen} onSubmit={createChannel} />
+      <JoinOrganizationModal open={joinOrgOpen} onOpenChange={setJoinOrgOpen} onSubmit={joinOrganization} />
+      <StartDMModal open={startDMOpen} onOpenChange={setStartDMOpen} onSubmit={startDM} />
     </div>
   )
 }

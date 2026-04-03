@@ -4,9 +4,9 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function selectPathway(formData: FormData) {
-  const pathwayId = formData.get('pathwayId') as string
-  if (!pathwayId) throw new Error('Pathway is required')
+export async function selectRole(formData: FormData) {
+  const roleId = formData.get('roleId') as string
+  if (!roleId) throw new Error('Role is required')
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,12 +14,12 @@ export async function selectPathway(formData: FormData) {
 
   const { error } = await supabase
     .from('profiles')
-    .update({ pathway: pathwayId, sequence: 9 })
+    .update({ role: roleId, rank: 9 })
     .eq('id', user.id)
 
   if (error) {
-    console.error('Error updating pathway:', error)
-    throw new Error('Failed to select pathway')
+    console.error('Error updating role:', error)
+    throw new Error('Failed to select role')
   }
 
   revalidatePath('/')

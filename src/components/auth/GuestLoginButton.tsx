@@ -53,8 +53,8 @@ export default function GuestLoginButton() {
       // The trigger created an empty profile. Now we update it.
       const { error: updateError } = await supabase.from('profiles').update({ 
         code_name: codeName.trim(),
-        pathway: 'Anonymous',
-        sequence: 0
+        role: 'Anonymous',
+        rank: 0
       }).eq('id', data.user.id)
 
       if (updateError) {
