@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+build/
+.env*
+.DS_Store
+../AGENTS.md
+../schema.sql
+../update_schema.sql
