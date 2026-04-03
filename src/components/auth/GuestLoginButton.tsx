@@ -76,7 +76,11 @@ export default function GuestLoginButton() {
 
   return (
     <div className="flex flex-col items-center w-full space-y-4">
-      {siteKey && (
+      {!siteKey ? (
+        <div className="text-xs text-amber-500 text-center w-full bg-amber-500/10 p-2 rounded border border-amber-500/20">
+          <strong>Setup Required:</strong> Add <code>NEXT_PUBLIC_TURNSTILE_SITE_KEY</code> to your Vercel Environment Variables.
+        </div>
+      ) : (
         <Turnstile
           ref={turnstileRef}
           siteKey={siteKey}
