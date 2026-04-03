@@ -32,11 +32,11 @@ export default function GuestLoginButton() {
     }
 
     const options = captchaToken ? { captchaToken } : undefined
-    const { data, error } = await supabase.auth.signInAnonymously({ options })
+    const { data, error } = await supabase.auth.signInAnonymously(options ? { options } : undefined)
     
     if (error) {
       console.error(error)
-      alert("Error: Please check your Supabase Dashboard configuration (Anonymous Sign-ins and CAPTCHA).")
+      alert(`Error: ${error.message}. Please check your Supabase Dashboard configuration (Anonymous Sign-ins and CAPTCHA).`)
       setLoading(false)
       return
     }
