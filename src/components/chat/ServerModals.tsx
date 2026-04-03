@@ -251,3 +251,82 @@ export function StartDMModal({
     </Dialog>
   )
 }
+
+export function ChannelSettingsModal({ 
+  open, 
+  onOpenChange, 
+  channelName,
+  onRename,
+  onDelete
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void;
+  channelName: string;
+  onRename: (newName: string) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [name, setName] = useState(channelName)
+  const [loading, setLoading] = useState(false)
+
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || name === channelName) return
+    setLoading(true)
+    await onRename(name)
+    setLoading(false)
+    onOpenChange(false)
+  }
+
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to permanently delete #${channelName} and all its messages?`)) return
+    setLoading(true)
+    await onDelete()
+    setLoading(false)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100">
+        <DialogHeader>
+          <DialogTitle>Channel Settings</DialogTitle>
+          <DialogDescription className="text-zinc-400">
+            Manage settings for #{channelName}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-6 py-4">
+          <form onSubmit={handleRename} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="rename-channel" className="text-zinc-300">Rename Gathering</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">#</span>
+                <Input 
+                  id="rename-channel" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, '-'))} 
+                  className="bg-zinc-900 border-zinc-700 text-zinc-100 pl-8"
+                />
+              </div>
+            </div>
+            <Button type="submit" disabled={loading || !name.trim() || name === channelName} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full">
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </form>
+
+          <div className="border-t border-zinc-800 pt-4">
+            <h4 className="text-red-400 font-medium mb-2 text-sm">Danger Zone</h4>
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={loading}
+              className="w-full bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white border border-red-900/50"
+            >
+              Delete Channel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

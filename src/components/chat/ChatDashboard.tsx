@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Hash, User, LogOut, Copy, LogIn, MessageSquare, Menu, X } from 'lucide-react'
+import { Plus, Hash, User, LogOut, Copy, LogIn, MessageSquare, Menu, X, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import UserProfileSettings from './UserProfileSettings'
-import { CreateOrganizationModal, CreateChannelModal, JoinOrganizationModal, StartDMModal } from './ServerModals'
+import { CreateOrganizationModal, CreateChannelModal, JoinOrganizationModal, StartDMModal, ChannelSettingsModal } from './ServerModals'
 import { MessageItem } from './MessageItem'
+import { Settings2 } from 'lucide-react'
 import { getRole, getRankName } from '@/lib/roles'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -26,6 +27,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
   
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   // Modal states
@@ -33,6 +35,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
   const [createChannelOpen, setCreateChannelOpen] = useState(false)
   const [joinOrgOpen, setJoinOrgOpen] = useState(false)
   const [startDMOpen, setStartDMOpen] = useState(false)
+  const [channelSettingsOpen, setChannelSettingsOpen] = useState(false)
 
   const sessionTokenRef = useRef<string | null>(null)
 
@@ -262,12 +265,63 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     }
   }
 
+  const renameChannel = async (newName: string) => {
+    if (!activeChannel) return
+    const { error } = await supabase.from('channels').update({ name: newName }).eq('id', activeChannel.id)
+    if (error) {
+      console.error(error)
+      alert("Error renaming channel: " + error.message)
+    } else {
+      setChannels(prev => prev.map(c => c.id === activeChannel.id ? { ...c, name: newName } : c))
+      setActiveChannel({ ...activeChannel, name: newName })
+    }
+  }
+
+  const deleteChannel = async () => {
+    if (!activeChannel || !activeOrg) return
+    const { error } = await supabase.from('channels').delete().eq('id', activeChannel.id)
+    if (error) {
+      console.error(error)
+      alert("Error deleting channel: " + error.message)
+    } else {
+      setChannels(prev => prev.filter(c => c.id !== activeChannel.id))
+      setActiveChannel(null)
+    }
+  }
+
+  const handleEditInitiate = (id: string, content: string) => {
+    setEditingMessageId(id)
+    setNewMessage(content)
+  }
+
+  const cancelEdit = () => {
+    setEditingMessageId(null)
+    setNewMessage('')
+  }
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim() || !activeChannel || !user) return
 
     const msgContent = newMessage
     setNewMessage('') // optimistic clear
+
+    if (editingMessageId) {
+      const editId = editingMessageId
+      setEditingMessageId(null)
+      
+      const { error } = await supabase.from('messages').update({
+        content: msgContent,
+        is_edited: true,
+        updated_at: new Date().toISOString()
+      }).eq('id', editId)
+
+      if (error) {
+        console.error("Error editing message:", error)
+        alert("Error editing message: " + error.message)
+      }
+      return
+    }
 
     const tempId = `temp-${Date.now()}`
     const optimisticMsg: Message = {
@@ -541,8 +595,17 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           </button>
           {activeChannel ? (
             <>
-              <Hash size={20} className="text-zinc-500" />
-              <span>{activeChannel.name}</span>
+              <div className="flex items-center gap-2">
+                <Hash size={20} className="text-zinc-500" />
+                <span>{activeChannel.name}</span>
+              </div>
+              <button 
+                onClick={() => setChannelSettingsOpen(true)}
+                className="text-zinc-500 hover:text-zinc-300 transition-colors ml-auto p-1 rounded-md hover:bg-zinc-800"
+                title="Channel Settings"
+              >
+                <Settings2 size={18} />
+              </button>
             </>
           ) : (
             <span className="text-zinc-500">Select or create a gathering</span>
@@ -558,19 +621,30 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           )}
           
           {messages.map(msg => (
-            <MessageItem key={msg.id} msg={msg} currentUserId={user?.id} />
+            <MessageItem key={msg.id} msg={msg} currentUserId={user?.id} onEditInitiate={handleEditInitiate} />
           ))}
         </div>
 
         {/* Message Input */}
         {activeChannel && user && (
-          <div className="p-4">
+          <div className="p-4 flex flex-col gap-2">
+            {editingMessageId && (
+              <div className="flex items-center justify-between bg-zinc-800/50 text-zinc-300 text-sm px-4 py-2 rounded-lg border border-zinc-700/50">
+                <div className="flex items-center gap-2">
+                  <Pencil size={14} className="text-indigo-400" />
+                  <span>Editing message</span>
+                </div>
+                <button onClick={cancelEdit} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
             <form onSubmit={sendMessage} className="bg-zinc-800 rounded-lg p-3 flex items-center gap-3">
               <input 
                 type="text" 
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
-                placeholder={`Message #${activeChannel.name}`} 
+                placeholder={editingMessageId ? "Edit your message..." : `Message #${activeChannel.name}`} 
                 className="bg-transparent border-none outline-none flex-1 text-zinc-100 placeholder:text-zinc-500"
               />
             </form>
@@ -588,6 +662,15 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       <CreateChannelModal open={createChannelOpen} onOpenChange={setCreateChannelOpen} onSubmit={createChannel} />
       <JoinOrganizationModal open={joinOrgOpen} onOpenChange={setJoinOrgOpen} onSubmit={joinOrganization} />
       <StartDMModal open={startDMOpen} onOpenChange={setStartDMOpen} onSubmit={startDM} />
+      {activeChannel && (
+        <ChannelSettingsModal 
+          open={channelSettingsOpen} 
+          onOpenChange={setChannelSettingsOpen} 
+          channelName={activeChannel.name}
+          onRename={renameChannel}
+          onDelete={deleteChannel}
+        />
+      )}
     </div>
   )
 }

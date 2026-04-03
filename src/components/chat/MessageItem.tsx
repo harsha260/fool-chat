@@ -32,32 +32,13 @@ type Message = {
   reactions?: Record<string, string[]>; // { '👍': ['uuid1', 'uuid2'] }
 }
 
-export function MessageItem({ msg, currentUserId }: { msg: Message, currentUserId?: string }) {
+export function MessageItem({ msg, currentUserId, onEditInitiate }: { msg: Message, currentUserId?: string, onEditInitiate: (id: string, content: string) => void }) {
   const isOwn = msg.profile_id === currentUserId
   const roleDef = getRole(msg.role || '')
   const roleColorClass = roleDef ? roleDef.textColor : 'text-zinc-400'
   const rankBadge = msg.role ? `[${getRankName(msg.role, msg.rank)}]` : ''
   
-  const [isEditing, setIsEditing] = useState(false)
-  const [editContent, setEditContent] = useState(msg.content)
-  const [isSaving, setIsSaving] = useState(false)
   const supabase = createClient()
-
-  const handleEdit = async () => {
-    if (!editContent.trim() || editContent === msg.content) {
-      setIsEditing(false)
-      return
-    }
-    setIsSaving(true)
-    const { error } = await supabase
-      .from('messages')
-      .update({ content: editContent, is_edited: true, updated_at: new Date().toISOString() })
-      .eq('id', msg.id)
-    
-    if (error) console.error("Error updating message:", error)
-    setIsSaving(false)
-    setIsEditing(false)
-  }
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this message?")) return
@@ -113,39 +94,11 @@ export function MessageItem({ msg, currentUserId }: { msg: Message, currentUserI
         
         <div className={`relative flex items-center gap-2 mt-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
           <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isOwn ? 'bg-indigo-600 text-zinc-100 rounded-tr-sm' : 'bg-zinc-800 text-zinc-100 rounded-tl-sm'}`}>
-            {isEditing ? (
-              <div className="flex flex-col gap-2 min-w-[200px]">
-                <textarea 
-                  value={editContent}
-                  onChange={e => setEditContent(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-700 text-zinc-100 p-2 rounded text-sm w-full outline-none resize-none min-h-[60px]"
-                  autoFocus
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleEdit();
-                    } else if (e.key === 'Escape') {
-                      setIsEditing(false);
-                      setEditContent(msg.content);
-                    }
-                  }}
-                />
-                <div className="flex gap-2 justify-end">
-                  <button onClick={() => { setIsEditing(false); setEditContent(msg.content); }} className="text-zinc-400 hover:text-zinc-200">
-                    <X size={16} />
-                  </button>
-                  <button onClick={handleEdit} disabled={isSaving} className="text-emerald-400 hover:text-emerald-300">
-                    <Check size={16} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-            )}
+            <div className="whitespace-pre-wrap break-words">{msg.content}</div>
           </div>
 
           {/* Action Menu - Only visible on hover and not while editing */}
-          {!isEditing && msg.status === 'sent' && (
+          {msg.status === 'sent' && (
             <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ${isOwn ? 'mr-2' : 'ml-2'}`}>
               {currentUserId && (
                 <Popover>
@@ -174,7 +127,7 @@ export function MessageItem({ msg, currentUserId }: { msg: Message, currentUserI
                     <MoreHorizontal size={16} />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align={isOwn ? "end" : "start"} className="bg-zinc-900 border-zinc-800 text-zinc-300">
-                    <DropdownMenuItem className="cursor-pointer focus:bg-zinc-800" onClick={() => setIsEditing(true)}>
+                    <DropdownMenuItem className="cursor-pointer focus:bg-zinc-800" onClick={() => onEditInitiate(msg.id, msg.content)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       <span>Edit Message</span>
                     </DropdownMenuItem>

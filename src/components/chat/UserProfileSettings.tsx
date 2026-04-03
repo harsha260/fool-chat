@@ -3,13 +3,10 @@
 import { useState } from 'react'
 import { User, LogOut, Settings, Hash, Shield, Bell, KeySquare, MonitorSpeaker, Eye, Palette } from 'lucide-react'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -30,6 +27,7 @@ type Profile = { id: string; code_name: string; role: string | null; rank: numbe
 
 export default function UserProfileSettings({ profile, isAnonymous, handleLogout }: { profile: Profile | null, isAnonymous: boolean, handleLogout: () => void }) {
   const router = useRouter()
+  const [popoverOpen, setPopoverOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [codeName, setCodeName] = useState(profile?.code_name || '')
   const [updatingName, setUpdatingName] = useState(false)
@@ -53,49 +51,57 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
       console.error(error)
     } else {
       alert("Code Name updated! Refresh to see changes globally.")
-      // Might want a global state/context refresh here
     }
     setUpdatingName(false)
   }
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all focus:outline-none" title="Profile & Settings">
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all focus:outline-none" title="Profile & Settings">
           {profile?.code_name ? profile.code_name.substring(0, 2).toUpperCase() : <User size={20} />}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="right" align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-300 ml-2">
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none text-zinc-100">{profile?.code_name || "Wandering Spirit"}</p>
-              <p className="text-xs leading-none text-zinc-500">
-                {isAnonymous ? "Anonymous User" : (profile?.rank ? `Seq ${profile.rank}: ${getRankName(profile.role, profile.rank)}` : "Rank Name")}
-              </p>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-zinc-800" />
+        </PopoverTrigger>
+        <PopoverContent side="right" align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-300 ml-2 p-2">
+          <div className="flex flex-col space-y-1 mb-2 px-2 py-1.5">
+            <p className="text-sm font-medium leading-none text-zinc-100">{profile?.code_name || "Wandering Spirit"}</p>
+            <p className="text-xs leading-none text-zinc-500 mt-1">
+              {isAnonymous ? "Anonymous User" : (profile?.rank ? `Seq ${profile.rank}: ${getRankName(profile.role, profile.rank)}` : "Rank Name")}
+            </p>
+          </div>
+          <div className="h-px bg-zinc-800 my-1" />
           
-          <DropdownMenuItem className="cursor-pointer focus:bg-zinc-800 focus:text-zinc-100" onClick={() => router.push('/choose-role')}>
+          <button 
+            className="w-full flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-zinc-800 hover:text-zinc-100 rounded transition-colors" 
+            onClick={() => { setPopoverOpen(false); router.push('/choose-role') }}
+          >
             <Hash className="mr-2 h-4 w-4" />
             <span>Change Role</span>
-          </DropdownMenuItem>
+          </button>
           
-          <DropdownMenuItem className="cursor-pointer focus:bg-zinc-800 focus:text-zinc-100" onClick={() => setSettingsOpen(true)}>
+          <button 
+            className="w-full flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-zinc-800 hover:text-zinc-100 rounded transition-colors" 
+            onClick={() => { setPopoverOpen(false); setSettingsOpen(true) }}
+          >
             <Settings className="mr-2 h-4 w-4" />
             <span>More Settings</span>
-          </DropdownMenuItem>
+          </button>
 
-          <DropdownMenuSeparator className="bg-zinc-800" />
-          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-rose-500 focus:bg-rose-500/10 focus:text-rose-500">
+          <div className="h-px bg-zinc-800 my-1" />
+          
+          <button 
+            onClick={() => { setPopoverOpen(false); handleLogout() }} 
+            className="w-full flex items-center px-2 py-1.5 text-sm cursor-pointer text-rose-500 hover:bg-rose-500/10 hover:text-rose-400 rounded transition-colors"
+          >
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </button>
+        </PopoverContent>
+      </Popover>
 
-      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden">
-          <div className="flex h-[500px]">
+      {settingsOpen && (
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden">
+            <div className="flex h-[500px]">
             <Tabs defaultValue="profile" className="flex flex-col w-full h-full">
               <div className="flex flex-row h-full">
                 {/* Sidebar Tabs */}
@@ -248,6 +254,7 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
           </div>
         </DialogContent>
       </Dialog>
+      )}
     </>
   )
 }
