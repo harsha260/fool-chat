@@ -72,18 +72,10 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
           
           <button 
             className="w-full flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-zinc-800 hover:text-zinc-100 rounded transition-colors" 
-            onClick={() => { setPopoverOpen(false); router.push('/choose-role') }}
-          >
-            <Hash className="mr-2 h-4 w-4" />
-            <span>Change Role</span>
-          </button>
-          
-          <button 
-            className="w-full flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-zinc-800 hover:text-zinc-100 rounded transition-colors" 
             onClick={() => { setPopoverOpen(false); setSettingsOpen(true) }}
           >
             <Settings className="mr-2 h-4 w-4" />
-            <span>More Settings</span>
+            <span>Profile & Settings</span>
           </button>
 
           <div className="h-px bg-zinc-800 my-1" />

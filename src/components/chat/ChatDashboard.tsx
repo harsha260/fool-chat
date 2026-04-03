@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Hash, User, LogOut, Copy, LogIn, MessageSquare, Menu, X, Pencil } from 'lucide-react'
+import { Plus, Hash, User, LogOut, Copy, LogIn, MessageSquare, Menu, X, Pencil, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import UserProfileSettings from './UserProfileSettings'
 import { CreateOrganizationModal, CreateChannelModal, JoinOrganizationModal, StartDMModal, ChannelSettingsModal } from './ServerModals'
@@ -15,6 +15,7 @@ type Organization = { id: string; name: string; owner_id: string }
 type Channel = { id: string; name: string; organization_id: string }
 type Message = { id: string; content: string; profile_id: string; created_at: string; code_name?: string; role?: string | null; rank?: number; status?: 'pending' | 'sent' | 'error'; is_edited?: boolean; reactions?: Record<string, string[]> }
 type Profile = { id: string; code_name: string; role: string | null; rank: number }
+type OrgMember = { profile_id: string; code_name: string; role: string | null; rank: number }
 
 export default function ChatDashboard({ user, profile }: { user: SupabaseUser | null, profile: Profile | null }) {
   const supabase = createClient()
@@ -29,6 +30,9 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
   const [newMessage, setNewMessage] = useState('')
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [membersSidebarOpen, setMembersSidebarOpen] = useState(false)
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
 
   // Modal states
   const [createOrgOpen, setCreateOrgOpen] = useState(false)
@@ -146,6 +150,60 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       supabase.removeChannel(channelSub)
     }
   }, [activeOrg])
+
+  useEffect(() => {
+    if (!activeOrg || !user) return
+
+    async function loadMembers() {
+      if (!activeOrg) return
+      const { data } = await supabase
+        .from('organization_members')
+        .select('profile_id, profiles(code_name, role, rank)')
+        .eq('organization_id', activeOrg.id)
+
+      if (data) {
+        setOrgMembers(data.map(m => ({
+          profile_id: m.profile_id,
+          code_name: (m.profiles as any)?.code_name || 'Unknown',
+          role: (m.profiles as any)?.role,
+          rank: (m.profiles as any)?.rank
+        })))
+      }
+    }
+    loadMembers()
+
+    const room = supabase.channel(`org:${activeOrg.id}:presence`, {
+      config: {
+        presence: { key: user.id }
+      }
+    })
+
+    room.on('presence', { event: 'sync' }, () => {
+      const state = room.presenceState()
+      const onlineIds = new Set<string>()
+      for (const id in state) {
+        onlineIds.add(id)
+      }
+      setOnlineUsers(onlineIds)
+    })
+
+    room.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await room.track({ online_at: new Date().toISOString() })
+      }
+    })
+
+    const membersSub = supabase.channel(`public:org_members:org_id=eq.${activeOrg.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'organization_members', filter: `organization_id=eq.${activeOrg.id}` }, () => {
+        loadMembers()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(room)
+      supabase.removeChannel(membersSub)
+    }
+  }, [activeOrg, user?.id, supabase])
 
   // 3. Fetch Messages when activeChannel changes
   useEffect(() => {
@@ -599,13 +657,22 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
                 <Hash size={20} className="text-zinc-500" />
                 <span>{activeChannel.name}</span>
               </div>
-              <button 
-                onClick={() => setChannelSettingsOpen(true)}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors ml-auto p-1 rounded-md hover:bg-zinc-800"
-                title="Channel Settings"
-              >
-                <Settings2 size={18} />
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button 
+                  onClick={() => setMembersSidebarOpen(!membersSidebarOpen)}
+                  className={`transition-colors p-1 rounded-md hover:bg-zinc-800 ${membersSidebarOpen ? 'text-zinc-100 bg-zinc-800' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Toggle Members List"
+                >
+                  <Users size={18} />
+                </button>
+                <button 
+                  onClick={() => setChannelSettingsOpen(true)}
+                  className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded-md hover:bg-zinc-800"
+                  title="Channel Settings"
+                >
+                  <Settings2 size={18} />
+                </button>
+              </div>
             </>
           ) : (
             <span className="text-zinc-500">Select or create a gathering</span>
@@ -656,6 +723,68 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           </div>
         )}
       </div>
+
+      {/* Members Sidebar */}
+      {membersSidebarOpen && activeOrg && (
+        <div className="w-60 bg-zinc-900 border-l border-zinc-800 flex flex-col h-full z-20 absolute right-0 md:relative md:flex shrink-0 transition-transform duration-300">
+          <div className="h-12 border-b border-zinc-800 flex items-center px-4 font-semibold text-zinc-100 justify-between">
+            <span>Members</span>
+            <button onClick={() => setMembersSidebarOpen(false)} className="md:hidden text-zinc-500 hover:text-zinc-100 p-1 rounded-md hover:bg-zinc-800 transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Online — {Array.from(onlineUsers).filter(id => orgMembers.some(m => m.profile_id === id)).length}</div>
+              <div className="space-y-1">
+                {orgMembers.filter(m => onlineUsers.has(m.profile_id)).map(member => (
+                  <div key={member.profile_id} className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-zinc-800/50 cursor-pointer transition-colors">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-medium text-zinc-300">
+                        {member.code_name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-900"></div>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium text-zinc-200 truncate">{member.code_name}</span>
+                      {member.role && (
+                        <span className="text-[10px] text-zinc-500 truncate leading-tight mt-0.5">
+                          Sequence {member.rank}: {getRankName(member.role, member.rank)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {orgMembers.filter(m => !onlineUsers.has(m.profile_id)).length > 0 && (
+              <div className="pt-2">
+                <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Offline — {orgMembers.filter(m => !onlineUsers.has(m.profile_id)).length}</div>
+                <div className="space-y-1">
+                  {orgMembers.filter(m => !onlineUsers.has(m.profile_id)).map(member => (
+                    <div key={member.profile_id} className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-zinc-800/50 cursor-pointer opacity-60 hover:opacity-100 transition-all">
+                      <div className="relative flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-medium text-zinc-500">
+                          {member.code_name.substring(0, 2).toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium text-zinc-400 truncate">{member.code_name}</span>
+                        {member.role && (
+                          <span className="text-[10px] text-zinc-600 truncate leading-tight mt-0.5">
+                            Sequence {member.rank}: {getRankName(member.role, member.rank)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <CreateOrganizationModal open={createOrgOpen} onOpenChange={setCreateOrgOpen} onSubmit={createOrganization} />
