@@ -55,7 +55,7 @@ export default async function ChoosePathwayPage() {
                 <input type="hidden" name="pathwayId" value={pathway.id} />
                 <Button 
                   type="submit" 
-                  className="w-full bg-zinc-800 hover:bg-zinc-200 hover:text-zinc-950 text-zinc-300 border-none transition-all duration-300 font-semibold"
+                  className={`w-full bg-zinc-900/50 border border-zinc-800 text-zinc-300 transition-all duration-300 font-semibold hover:text-zinc-50 ${pathway.hoverBg}`}
                   variant="outline"
                 >
                   Select Role
