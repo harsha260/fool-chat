@@ -399,10 +399,24 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     }
   }, [user])
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(false)
+    }
+  }, [])
+
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
+    <div className="flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans relative">
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/60 z-20"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Organizations Sidebar */}
-      <div className="w-16 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center py-4 space-y-4">
+      <div className={`w-16 bg-zinc-900 border-r border-zinc-800 flex-col items-center py-4 space-y-4 z-30 absolute md:relative h-full transition-transform duration-300 flex ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         {organizations.map(org => (
           <div 
             key={org.id}
@@ -446,7 +460,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       </div>
 
       {/* Channels Sidebar */}
-      <div className={`bg-zinc-900 flex flex-col border-r border-zinc-800 transition-all duration-300 overflow-hidden ${sidebarOpen ? 'w-60' : 'w-0 border-r-0'}`}>
+      <div className={`bg-zinc-900 flex-col border-r border-zinc-800 transition-all duration-300 overflow-hidden z-30 absolute md:relative h-full flex ${sidebarOpen ? 'w-60 translate-x-16 md:translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 border-r-0'}`}>
         <div className="h-12 min-w-[15rem] border-b border-zinc-800 flex items-center px-4 shadow-sm justify-between group">
           <span className="truncate text-base font-semibold">{activeOrg?.name || "No Organization"}</span>
           {activeOrg && !activeOrg.name.startsWith('@') && (
@@ -474,7 +488,10 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
           {channels.map(channel => (
             <div 
               key={channel.id}
-              onClick={() => setActiveChannel(channel)}
+              onClick={() => {
+                setActiveChannel(channel)
+                if (window.innerWidth < 768) setSidebarOpen(false)
+              }}
               className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
                 activeChannel?.id === channel.id 
                   ? 'bg-zinc-800 text-zinc-100' 
@@ -505,7 +522,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
+      <div className="flex-1 flex flex-col bg-zinc-950 min-w-0 h-full w-full">
         <div className="h-12 border-b border-zinc-800 flex items-center px-4 shadow-sm font-semibold gap-3 flex-shrink-0">
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)} 
