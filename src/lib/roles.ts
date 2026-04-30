@@ -74,10 +74,10 @@ export function getRole(id: string): Role | undefined {
 }
 
 export function getRankName(roleId: string | null | undefined, rank: number | null | undefined): string {
-  if (!roleId) return 'Wandering Spirit';
+  if (!roleId) return 'Guest';
   if (rank === 9) {
     const role = getRole(roleId);
-    return role ? role.rank9 : 'Unknown Potion';
+    return role ? role.rank9 : 'Unknown Role';
   }
   return `Rank ${rank || '?'}`;
 }

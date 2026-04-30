@@ -63,9 +63,9 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
         </PopoverTrigger>
         <PopoverContent side="right" align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-300 ml-2 p-2">
           <div className="flex flex-col space-y-1 mb-2 px-2 py-1.5">
-            <p className="text-sm font-medium leading-none text-zinc-100">{profile?.code_name || "Wandering Spirit"}</p>
+            <p className="text-sm font-medium leading-none text-zinc-100">{profile?.code_name || "Guest"}</p>
             <p className="text-xs leading-none text-zinc-500 mt-1">
-              {isAnonymous ? "Anonymous User" : (profile?.rank ? `Seq ${profile.rank}: ${getRankName(profile.role, profile.rank)}` : "Rank Name")}
+              {isAnonymous ? "Anonymous User" : (profile?.rank ? `Rank ${profile.rank}: ${getRankName(profile.role, profile.rank)}` : "Rank Name")}
             </p>
           </div>
           <div className="h-px bg-zinc-800 my-1" />
@@ -116,7 +116,7 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
                   <DialogHeader className="mb-4">
                     <DialogTitle>User Settings</DialogTitle>
                     <DialogDescription className="text-zinc-400 sr-only">
-                      Manage your Digital Sea preferences.
+                      Manage your preferences.
                     </DialogDescription>
                   </DialogHeader>
 
@@ -201,7 +201,7 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
                             <Palette className="w-4 h-4 text-zinc-400" />
                             <Label className="text-zinc-200 text-base">Light Theme</Label>
                           </div>
-                          <p className="text-xs text-zinc-500">The Digital Sea is permanently dark.</p>
+                          <p className="text-xs text-zinc-500">Only dark mode is supported.</p>
                         </div>
                         <Switch disabled checked={false} />
                       </div>
@@ -229,8 +229,8 @@ export default function UserProfileSettings({ profile, isAnonymous, handleLogout
                         <Button 
                           variant="destructive" 
                           className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white border border-red-900/50"
-                          onClick={() => {
-                            if (confirm("Are you entirely sure you want to sever your connection to the Digital Sea?")) {
+                           onClick={() => {
+                            if (confirm("Are you entirely sure you want to permanently delete your account?")) {
                               handleLogout() // For now, logout deletes anon users. For real users, we need an RPC to delete them.
                             }
                           }}

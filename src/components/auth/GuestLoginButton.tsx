@@ -20,7 +20,7 @@ export default function GuestLoginButton() {
       return
     }
 
-    const codeName = prompt("Enter your Code Name for this gathering:")
+    const codeName = prompt("Enter your Code Name for this session:")
     if (!codeName || codeName.trim() === '') return
 
     setLoading(true)
@@ -28,7 +28,7 @@ export default function GuestLoginButton() {
     // Check if code name is already taken (case-insensitive)
     const { data: existing } = await supabase.from('profiles').select('id').ilike('code_name', codeName.trim()).single()
     if (existing) {
-      alert("This Code Name is already taken by another Beyonder. Please choose a unique one.")
+      alert("This Code Name is already taken by another User. Please choose a unique one.")
       setLoading(false)
       return
     }

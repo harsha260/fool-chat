@@ -224,7 +224,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       if (data) {
         setMessages(data.map(m => ({
           ...m,
-          code_name: m.profiles?.code_name || 'Unknown Beyonder',
+          code_name: m.profiles?.code_name || 'Unknown User',
           role: m.profiles?.role,
           rank: m.profiles?.rank
         })) as Message[])
@@ -248,7 +248,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         const { data: profileData } = await supabase.from('profiles').select('code_name, role, rank').eq('id', payload.new.profile_id).single()
         const msg = { 
           ...payload.new, 
-          code_name: profileData?.code_name || 'Unknown Beyonder', 
+          code_name: profileData?.code_name || 'Unknown User', 
           role: profileData?.role,
           rank: profileData?.rank,
           status: 'sent' 
@@ -387,7 +387,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
       content: msgContent,
       profile_id: user.id,
       created_at: new Date().toISOString(),
-      code_name: profile?.code_name || user.email || 'Wandering Spirit',
+      code_name: profile?.code_name || user.email || 'Guest',
       status: 'pending'
     }
 
@@ -432,7 +432,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
     // Look up user by code name
     const { data: targetProfile, error: profileError } = await supabase.from('profiles').select('*').eq('code_name', targetCodeName).single()
     
-    if (!targetProfile) return alert("Beyonder not found.")
+    if (!targetProfile) return alert("User not found.")
     if (targetProfile.id === user.id) return alert("You cannot DM yourself.")
 
     // Check if DM org already exists for these two
@@ -617,7 +617,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-[15rem]">
           {activeOrg && (
             <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-zinc-400 uppercase tracking-wider mt-4 mb-1">
-              <span>Gatherings</span>
+              <span>Channels</span>
               <button onClick={() => setCreateChannelOpen(true)} className="hover:text-zinc-100"><Plus size={14} /></button>
             </div>
           )}
@@ -675,14 +675,14 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
               </div>
             </>
           ) : (
-            <span className="text-zinc-500">Select or create a gathering</span>
+            <span className="text-zinc-500">Select or create a channel</span>
           )}
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {!activeChannel && activeOrg && channels.length === 0 && (
             <div className="flex items-center justify-center h-full text-zinc-500 flex-col gap-2">
-              <p>No gatherings in this organization yet.</p>
+              <p>No channels in this organization yet.</p>
               <Button onClick={() => setCreateChannelOpen(true)} variant="outline" className="border-zinc-700">Create the first one</Button>
             </div>
           )}
@@ -719,7 +719,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
         )}
         {activeChannel && !user && (
           <div className="p-4 text-center text-zinc-500 text-sm bg-zinc-900 border-t border-zinc-800">
-            You must log in to participate in the gathering.
+            You must log in to participate in the channel.
           </div>
         )}
       </div>
@@ -749,7 +749,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
                       <span className="text-sm font-medium text-zinc-200 truncate">{member.code_name}</span>
                       {member.role && (
                         <span className="text-[10px] text-zinc-500 truncate leading-tight mt-0.5">
-                          Sequence {member.rank}: {getRankName(member.role, member.rank)}
+                          Rank {member.rank}: {getRankName(member.role, member.rank)}
                         </span>
                       )}
                     </div>
@@ -773,7 +773,7 @@ export default function ChatDashboard({ user, profile }: { user: SupabaseUser | 
                         <span className="text-sm font-medium text-zinc-400 truncate">{member.code_name}</span>
                         {member.role && (
                           <span className="text-[10px] text-zinc-600 truncate leading-tight mt-0.5">
-                            Sequence {member.rank}: {getRankName(member.role, member.rank)}
+                            Rank {member.rank}: {getRankName(member.role, member.rank)}
                           </span>
                         )}
                       </div>

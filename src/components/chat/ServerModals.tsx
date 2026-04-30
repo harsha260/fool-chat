@@ -41,7 +41,7 @@ export function CreateOrganizationModal({
         <DialogHeader>
           <DialogTitle>Create Organization</DialogTitle>
           <DialogDescription className="text-zinc-400">
-            Form a new secret gathering or organization in the Digital Sea.
+            Form a new organization in the system.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
@@ -51,7 +51,7 @@ export function CreateOrganizationModal({
               id="org-name" 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
-              placeholder="e.g. The Tarot Club"
+              placeholder="e.g. My Organization"
               className="bg-zinc-900 border-zinc-700 text-zinc-100"
               autoFocus
               required
@@ -97,7 +97,7 @@ export function CreateChannelModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
-          <DialogTitle>Create Gathering Channel</DialogTitle>
+          <DialogTitle>Create Channel</DialogTitle>
           <DialogDescription className="text-zinc-400">
             Add a new space for members to discuss specific topics.
           </DialogDescription>
@@ -111,7 +111,7 @@ export function CreateChannelModal({
                 id="channel-name" 
                 value={name} 
                 onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, '-'))} 
-                placeholder="formulas-exchange"
+                placeholder="general"
                 className="bg-zinc-900 border-zinc-700 text-zinc-100 pl-8"
                 autoFocus
                 required
@@ -219,7 +219,7 @@ export function StartDMModal({
         <DialogHeader>
           <DialogTitle>Start Direct Message</DialogTitle>
           <DialogDescription className="text-zinc-400">
-            Reach out directly to another Beyonder using their Code Name.
+            Reach out directly to another user using their Code Name.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
@@ -297,7 +297,7 @@ export function ChannelSettingsModal({
         <div className="grid gap-6 py-4">
           <form onSubmit={handleRename} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="rename-channel" className="text-zinc-300">Rename Gathering</Label>
+              <Label htmlFor="rename-channel" className="text-zinc-300">Rename Channel</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">#</span>
                 <Input 

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Fool Chat",
-  description: "A Lord of the Mysteries themed messaging platform",
+  description: "LotM inspired messaging app",
 };
 
 export default function RootLayout({
